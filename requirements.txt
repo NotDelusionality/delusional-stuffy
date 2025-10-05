@@ -1,1 +1,4 @@
-pip install opencv-python mediapipe numpy pyautogui keyboard
+pip install opencv-python mediapipe numpy pyautogui keyboard SpeechRecognition
+Python 3.10.0
+pip install nuitka
+
