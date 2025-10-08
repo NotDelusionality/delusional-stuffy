@@ -2,3 +2,7 @@ pip install opencv-python mediapipe numpy pyautogui keyboard SpeechRecognition
 Python 3.10.0
 pip install nuitka
 
+-------------Vosk-------------
+You need to download the Vosk model and place it in a folder named model in the same directory as this script.
+Install dependencies: pip install vosk sounddevice
+You might need to adjust audio input device if the default isn’t correct.
