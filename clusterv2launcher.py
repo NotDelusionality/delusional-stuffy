@@ -4,6 +4,7 @@ from CTkMessagebox import CTkMessagebox
 from PIL import Image, ImageTk
 import cv2
 import time
+import speech_recognition as sr
 
 # ---------------- COLORS ----------------
 BG = "#16181d"
@@ -29,6 +30,10 @@ _preview_lock = threading.Lock()
 _preview_capture = None
 _preview_photo = None
 
+# ------------------ Selected devices ------------------
+selected_camera = None
+selected_microphone = None
+
 # ---------------- CORE FUNCTIONS ----------------
 def start_system():
     global running_process, _preview_running
@@ -47,11 +52,28 @@ def start_system():
     def run():
         global running_process
         try:
-            # Launch the control app in a new Python process
-            running_process = subprocess.Popen([sys.executable, SCRIPT_NAME])
+            # --- Argument passing for camera/mic ---
+            # To make this work, clusterv2.py needs to be modified to parse these arguments.
+            # Example for clusterv2.py using argparse:
+            #   import argparse
+            #   parser = argparse.ArgumentParser()
+            #   parser.add_argument("--camera", type=int, default=0)
+            #   parser.add_argument("--mic", type=int, default=0)
+            #   args = parser.parse_args()
+            #   ...
+            #   cap = cv2.VideoCapture(args.camera)
+            #   mic = sr.Microphone(device_index=args.mic)
+
+            cam_idx = int(selected_camera.get().split(" ")[-1]) if selected_camera.get() else 0
+            mic_idx = get_microphone_devices().index(selected_microphone.get()) if selected_microphone.get() else 0
+
+            command = [sys.executable, SCRIPT_NAME, f"--camera={cam_idx}", f"--mic={mic_idx}"]
+            add_log(f"Starting with command: {' '.join(command)}")
+
+            running_process = subprocess.Popen(command)
             running_process.wait()
         except Exception as e:
-            add_log(f"Failed to launch .Get Better lol: {e}")
+            add_log(f"Failed to launch. Get Better lol: {e}")
         finally:
             running_process = None
             set_status("OFFLINE", NEON_DANGER)
@@ -191,6 +213,27 @@ def stop_camera_preview():
     except Exception:
         pass
 
+# ---------------- Device Discovery ----------------
+def get_camera_devices():
+    """Returns a list of camera device names."""
+    devices = []
+    i = 0
+    while True:
+        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            break
+        devices.append(f"Camera {i}")
+        cap.release()
+        i += 1
+    return devices if devices else ["No cameras found"]
+
+def get_microphone_devices():
+    """Returns a list of microphone device names."""
+    try:
+        return sr.Microphone.list_microphone_names()
+    except Exception:
+        return ["No microphones found"]
+
 # ---------------- Help UI ----------------
 
 def show_help_dialog():
@@ -324,7 +367,24 @@ class ExpandableSection(ctk.CTkFrame):
 
 
 def advanced_content(parent):
-    ctk.CTkLabel(parent, text="Calibration & Debug", font=("Segoe UI", 12, "bold"), text_color=NEON_CYAN).pack(anchor="nw", pady=(2,2))
+    global selected_camera, selected_microphone
+    ctk.CTkLabel(parent, text="Device Selection", font=("Segoe UI", 12, "bold"), text_color=NEON_CYAN).pack(anchor="nw", pady=(8,4))
+
+    # Camera selection
+    ctk.CTkLabel(parent, text="Camera:", font=("Segoe UI", 10)).pack(anchor="nw")
+    camera_list = get_camera_devices()
+    selected_camera = ctk.StringVar(value=camera_list[0])
+    cam_menu = ctk.CTkOptionMenu(parent, variable=selected_camera, values=camera_list)
+    cam_menu.pack(anchor="nw", fill="x", pady=(2,8))
+
+    # Mic selection
+    ctk.CTkLabel(parent, text="Microphone:", font=("Segoe UI", 10)).pack(anchor="nw")
+    mic_list = get_microphone_devices()
+    selected_microphone = ctk.StringVar(value=mic_list[0])
+    mic_menu = ctk.CTkOptionMenu(parent, variable=selected_microphone, values=mic_list)
+    mic_menu.pack(anchor="nw", fill="x", pady=(2,12))
+
+    ctk.CTkLabel(parent, text="Calibration & Debug", font=("Segoe UI", 12, "bold"), text_color=NEON_CYAN).pack(anchor="nw", pady=(10,2))
     ctk.CTkLabel(
         parent,
         text=("• Press [C] in the camera window to calibrate center.\n"

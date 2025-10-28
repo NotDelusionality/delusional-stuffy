@@ -1,1 +1,8 @@
-pip install opencv-python mediapipe numpy pyautogui keyboard
+opencv-python
+mediapipe
+numpy
+pyautogui
+keyboard
+speechrecognition
+thefuzz
+python-Levenshtein

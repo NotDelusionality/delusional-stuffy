@@ -9,6 +9,8 @@ import threading
 import time
 import keyboard
 import speech_recognition as sr
+import argparse
+from fuzzywuzzy import process
 
 
 # Global settings & state
@@ -36,13 +38,20 @@ ray_directions = deque(maxlen=filter_length)
 raw_yaw_deg = 180.0
 raw_pitch_deg = 180.0
 
-# Speech Mode 
+# Speech Mode
 mode = "typing"
 state_lock = threading.Lock()
 
 # Recognizer
 recognizer = sr.Recognizer()
-mic = sr.Microphone()
+
+# --- Argument parsing for camera/mic ---
+parser = argparse.ArgumentParser()
+parser.add_argument("--camera", type=int, default=0, help="Index of the camera to use.")
+parser.add_argument("--mic", type=int, default=0, help="Index of the microphone to use.")
+args = parser.parse_args()
+
+mic = sr.Microphone(device_index=args.mic)
 
 
 # MediaPipe Face Mesh init
@@ -81,7 +90,7 @@ command_map = {
     "switch window": ["alt", "tab"], "screenshot": ["win", "printscreen"],
     # Special keys
     "enter": ["enter"], "backspace": ["backspace"], "tab": ["tab"], "space": ["space"],
-    "escape": ["esc"], "delete": ["delete"], "up": ["up"], "down": ["down"], 
+    "escape": ["esc"], "delete": ["delete"], "up": ["up"], "down": ["down"],
     "left": ["left"], "right": ["right"], "control": ["ctrl"], "shift": ["shift"], "alt": ["alt"], "windows": ["win"]
 }
 
@@ -99,7 +108,7 @@ for num in range(10):
 # Mouse commands handled separately
 # ------------------------
 mouse_commands = ("left click", "right click", "double click", "click and hold",
-                  "release click", "scroll up", "scroll down", "move mouse to center", 
+                  "release click", "scroll up", "scroll down", "move mouse to center",
                   "center mouse", "toggle mouse", "calibrate", "center")
 
 
@@ -157,6 +166,14 @@ def perform_command_from_text(text):
         return
 
     if current_mode == "command":
+        # --- Fuzzy matching for command mode ---
+        all_commands = list(command_map.keys()) + list(mouse_commands)
+        best_match, score = process.extractOne(text, all_commands)
+
+        if score > 80: # Confidence threshold
+            text = best_match
+            print(f"[voice] corrected to '{text}' with score {score}")
+
         # Mouse actions
         if "left click" in text or text == "click":
             pyautogui.click(); print("[action] left click"); return
@@ -177,17 +194,17 @@ def perform_command_from_text(text):
             print("[action] mouse moved to center"); return
 
         # Command map
-        for cmd, keys in command_map.items():
-            if cmd in text:
-                try:
-                    if len(keys)==1 and len(keys[0])==1 and keys[0].isalnum():
-                        pyautogui.press(keys[0])
-                    else:
-                        pyautogui.hotkey(*keys)
-                    print(f"[action] executed command map: {cmd} -> {keys}")
-                except Exception as e:
-                    print("Hotkey error:", e)
-                return
+        if text in command_map:
+            keys = command_map[text]
+            try:
+                if len(keys)==1 and len(keys[0])==1 and keys[0].isalnum():
+                    pyautogui.press(keys[0])
+                else:
+                    pyautogui.hotkey(*keys)
+                print(f"[action] executed command map: {text} -> {keys}")
+            except Exception as e:
+                print("Hotkey error:", e)
+            return
 
         # fallback: press <char>
         tokens = text.split()
@@ -227,9 +244,9 @@ CURSOR_SMOOTHING = 0.2
 
 prev_mouse_x, prev_mouse_y = CENTER_X, CENTER_Y
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(args.camera)
 if not cap.isOpened():
-    print("Error: Camera not found")
+    print(f"Error: Camera with index {args.camera} not found")
     exit()
 
 def landmark_to_np(landmark, w, h):
