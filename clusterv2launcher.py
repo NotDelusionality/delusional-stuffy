@@ -18,8 +18,16 @@ HEADER = "#ffffff"
 SUBTLE = "#b0b1bb"
 
 # ---------------- PATHS ----------------
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-SCRIPT_NAME = os.path.join(SCRIPT_DIR, "clusterv2.py")
+# Logic to handle both running from source and from a cx_Freeze executable
+if getattr(sys, "frozen", False):
+    # Running in a bundle
+    SCRIPT_DIR = os.path.dirname(sys.executable)
+    EXE_NAME = "BocelliCore.exe" if sys.platform == "win32" else "BocelliCore"
+    SCRIPT_NAME = os.path.join(SCRIPT_DIR, EXE_NAME)
+else:
+    # Running in a normal Python environment
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    SCRIPT_NAME = os.path.join(SCRIPT_DIR, "clusterv2.py")
 
 running_process = None
 
@@ -52,22 +60,27 @@ def start_system():
     def run():
         global running_process
         try:
-            # --- Argument passing for camera/mic ---
-            # To make this work, clusterv2.py needs to be modified to parse these arguments.
-            # Example for clusterv2.py using argparse:
-            #   import argparse
-            #   parser = argparse.ArgumentParser()
-            #   parser.add_argument("--camera", type=int, default=0)
-            #   parser.add_argument("--mic", type=int, default=0)
-            #   args = parser.parse_args()
-            #   ...
-            #   cap = cv2.VideoCapture(args.camera)
-            #   mic = sr.Microphone(device_index=args.mic)
+            cam_idx = 0
+            mic_idx = 0
+            if selected_camera and selected_camera.get():
+                try:
+                    cam_idx = int(re.search(r'\d+$', selected_camera.get()).group())
+                except (AttributeError, ValueError):
+                    pass # Keep default if parsing fails
 
-            cam_idx = int(selected_camera.get().split(" ")[-1]) if selected_camera.get() else 0
-            mic_idx = get_microphone_devices().index(selected_microphone.get()) if selected_microphone.get() else 0
+            if selected_microphone and selected_microphone.get():
+                try:
+                    mic_idx = get_microphone_devices().index(selected_microphone.get())
+                except (ValueError):
+                    pass # Keep default if not found
 
-            command = [sys.executable, SCRIPT_NAME, f"--camera={cam_idx}", f"--mic={mic_idx}"]
+            # When running from source, we need to invoke python.
+            # When running from frozen, the script is an executable.
+            if getattr(sys, "frozen", False):
+                 command = [SCRIPT_NAME, f"--camera={cam_idx}", f"--mic={mic_idx}"]
+            else:
+                 command = [sys.executable, SCRIPT_NAME, f"--camera={cam_idx}", f"--mic={mic_idx}"]
+
             add_log(f"Starting with command: {' '.join(command)}")
 
             running_process = subprocess.Popen(command)

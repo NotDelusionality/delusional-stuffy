@@ -1,34 +1,38 @@
 import sys
 from cx_Freeze import setup, Executable
 
-# Dependencies
+# Common options for both executables
 build_exe_options = {
     "packages": [
-        "os", "sys", "subprocess", "threading", "time", "math", "random",
+        "os", "sys", "subprocess", "threading", "time", "math",
         "cv2", "mediapipe", "numpy", "pyautogui", "keyboard",
-        "speech_recognition", "customtkinter", "PIL", "matplotlib", 
+        "speech_recognition", "customtkinter", "PIL", "fuzzywuzzy"
     ],
-    "include_files": [
-        ("clusterv2.py", "clusterv2.py"),   # main app
-                       
-    ],
-    "excludes": ["tkinter.test", "unittest", "email"],
+    "excludes": ["tkinter"],
 }
 
-# Main launcher file — the one the user double-clicks
-main_script = "clusterv2launcher.py"
-
-# Hide console window if GUI app
+# Determine the base for the GUI application
 base = None
 if sys.platform == "win32":
     base = "Win32GUI"
 
+# Define the executables
+executables = [
+    Executable(
+        "clusterv2launcher.py",
+        base=base,
+        target_name="BocelliApp.exe" if sys.platform == "win32" else "BocelliApp",
+    ),
+    Executable(
+        "clusterv2.py",
+        target_name="BocelliCore.exe" if sys.platform == "win32" else "BocelliCore",
+    ),
+]
+
 setup(
     name="BocelliApp",
-    version="1.0",
+    version="1.1",
     description="Bocelli Voice and Facial Control",
     options={"build_exe": build_exe_options},
-    executables=[
-        Executable(main_script, base=base, target_name="BocelliApp.exe")
-    ]
+    executables=executables,
 )
