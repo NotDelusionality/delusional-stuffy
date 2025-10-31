@@ -6,9 +6,9 @@ build_exe_options = {
     "packages": [
         "os", "sys", "subprocess", "threading", "time", "math",
         "cv2", "mediapipe", "numpy", "pyautogui", "keyboard",
-        "speech_recognition", "customtkinter", "PIL", "fuzzywuzzy"
+        "speech_recognition", "customtkinter", "PIL", "fuzzywuzzy", "tkinter"
     ],
-    "excludes": ["tkinter"],
+    "excludes": [],
 }
 
 # Determine the base for the GUI application
@@ -31,7 +31,7 @@ executables = [
 
 setup(
     name="BocelliApp",
-    version="1.1",
+    version="1.2",
     description="Bocelli Voice and Facial Control",
     options={"build_exe": build_exe_options},
     executables=executables,
