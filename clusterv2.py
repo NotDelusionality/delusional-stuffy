@@ -49,6 +49,7 @@ recognizer = sr.Recognizer()
 parser = argparse.ArgumentParser()
 parser.add_argument("--camera", type=int, default=0, help="Index of the camera to use.")
 parser.add_argument("--mic", type=int, default=0, help="Index of the microphone to use.")
+parser.add_argument("--super-accuracy", action="store_true", help="Enable super accuracy mode.")
 args = parser.parse_args()
 
 mic = sr.Microphone(device_index=args.mic)
@@ -170,7 +171,10 @@ def perform_command_from_text(text):
         all_commands = list(command_map.keys()) + list(mouse_commands)
         best_match, score = process.extractOne(text, all_commands)
 
-        if score > 80: # Confidence threshold
+        if args.super_accuracy:
+            text = best_match
+            print(f"[voice] SUPER ACCURACY corrected to '{text}' with score {score}")
+        elif score > 80: # Confidence threshold
             text = best_match
             print(f"[voice] corrected to '{text}' with score {score}")
 

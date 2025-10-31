@@ -41,6 +41,7 @@ _preview_photo = None
 # ------------------ Selected devices ------------------
 selected_camera = None
 selected_microphone = None
+super_accuracy_mode = None
 
 # ---------------- CORE FUNCTIONS ----------------
 def start_system():
@@ -81,9 +82,23 @@ def start_system():
             else:
                  command = [sys.executable, SCRIPT_NAME, f"--camera={cam_idx}", f"--mic={mic_idx}"]
 
+            if super_accuracy_mode and super_accuracy_mode.get():
+                command.append("--super-accuracy")
+
             add_log(f"Starting with command: {' '.join(command)}")
 
-            running_process = subprocess.Popen(command)
+            running_process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+            )
+
+            # Start a thread to read the process's output
+            threading.Thread(target=_read_process_output, args=(running_process,), daemon=True).start()
+
             running_process.wait()
         except Exception as e:
             add_log(f"Failed to launch. Get Better lol: {e}")
@@ -118,11 +133,27 @@ def set_status(text, color):
 
 
 def add_log(msg):
+    # If the message is from the core app, don't add a timestamp
+    if msg.startswith("["):
+        log_textbox.configure(state="normal")
+        log_textbox.insert("end", msg)
+        log_textbox.configure(state="disabled")
+        log_textbox.see("end")
+        return
+
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     log_textbox.configure(state="normal")
     log_textbox.insert("end", f"[{timestamp}] {msg}\n")
     log_textbox.configure(state="disabled")
     log_textbox.see("end")
+
+def _read_process_output(process):
+    if process.stdout:
+        for line in iter(process.stdout.readline, ''):
+            root.after(0, add_log, line)
+    if process.stderr:
+        for line in iter(process.stderr.readline, ''):
+            root.after(0, add_log, f"[ERROR] {line}")
 
 # ---------------- Helper: parse commands from clusterv2.py ----------------
 def parse_commands_from_script(path):
@@ -380,7 +411,7 @@ class ExpandableSection(ctk.CTkFrame):
 
 
 def advanced_content(parent):
-    global selected_camera, selected_microphone
+    global selected_camera, selected_microphone, super_accuracy_mode
     ctk.CTkLabel(parent, text="Device Selection", font=("Segoe UI", 12, "bold"), text_color=NEON_CYAN).pack(anchor="nw", pady=(8,4))
 
     # Camera selection
@@ -396,6 +427,12 @@ def advanced_content(parent):
     selected_microphone = ctk.StringVar(value=mic_list[0])
     mic_menu = ctk.CTkOptionMenu(parent, variable=selected_microphone, values=mic_list)
     mic_menu.pack(anchor="nw", fill="x", pady=(2,12))
+
+    ctk.CTkLabel(parent, text="Accuracy Settings", font=("Segoe UI", 12, "bold"), text_color=NEON_CYAN).pack(anchor="nw", pady=(10,4))
+    super_accuracy_mode = ctk.BooleanVar(value=False)
+    accuracy_switch = ctk.CTkSwitch(parent, text="Super Accuracy Mode", variable=super_accuracy_mode, onvalue=True, offvalue=False)
+    accuracy_switch.pack(anchor="nw", pady=(4,12))
+
 
     ctk.CTkLabel(parent, text="Calibration & Debug", font=("Segoe UI", 12, "bold"), text_color=NEON_CYAN).pack(anchor="nw", pady=(10,2))
     ctk.CTkLabel(
